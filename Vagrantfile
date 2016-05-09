@@ -82,12 +82,23 @@ Vagrant.configure(2) do |config|
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
   config.vm.provision "shell", inline: <<-SHELL
-    yum update -y
+    #yum update -y
 
     cp /vagrant/docker.repo /etc/yum.repos.d/docker.repo
-
+    yum makecache fast
     yum install -y docker-engine
+
     systemctl start docker
-    exec /vagrant/create_containers.sh
+    docker stop $(docker ps -a -q)
+    docker rm $(docker ps -a -q)
+
+    # Tell the scripts that we are running inside Vagrant
+    touch /etc/is_vagrant_vm
+
+    # Execute the scripts    
+    sh /vagrant/create_containers.sh
+    sh /vagrant/install_services.sh
+
+    systemctl start docker-sabnzbd docker-sonarr docker-plex docker-couchpotato docker-transmission docker-headphones
   SHELL
 end

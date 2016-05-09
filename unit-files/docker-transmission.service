@@ -1,0 +1,12 @@
+[Unit]
+Description=Transmission Container
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker start -a Transmission
+ExecStop=/usr/bin/docker stop -t 2 Transmission
+
+[Install]
+WantedBy=multi-user.target

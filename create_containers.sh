@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Installation directory, default is the current directory, change if needed.
-INSTALL_DIR=`pwd`
+INSTALL_DIR='/archive/Docker'
 
-DOWNLOAD_TEMP=/tmp/sabtemp
-INCOMING=/tmp/Incoming
-TV_SERIES=/tmp/Series
-MOVIES=/tmp/Movies
-MUSIC=/tmp/Music
-TORRENT_WATCHED_FOLDER=/tmp/watched
+DOWNLOAD_TEMP=/archive/sabtemp
+INCOMING=/archive/Incoming
+TV_SERIES=/archive/Series
+MOVIES=/archive/Movies
+MUSIC=/archive/Music
+TORRENT_WATCHED_FOLDER=/data/watched
 
 GROUP=thuis
 
@@ -20,11 +20,18 @@ SONARR_USER=sonarr
 TRANSMISSION_USER=transmission
 
 ############### DO NOT EDIT BELOW THIS LINE, unless you know how this shit works, then please do, but please commit back upstream :) #############################
+if [ ! -d ${INSTALL_DIR} ]; then
+  echo "Creating ${INSTALL_DIR}"
+  mkdir -p ${INSTALL_DIR}
+fi
+
 if [ ! -z $(getent group ${GROUP}) ]; then
   echo "Group ${GROUP} exists."
+  ID_GROUP=`getent group ${GROUP} | cut -d: -f3`
 else
   echo "Group ${GROUP} DOES NOT exist, creating..."
   groupadd ${GROUP}
+  ID_GROUP=`getent group ${GROUP} | cut -d: -f3`
 fi
 
 if [ ! -z $(getent passwd ${SABNZBD_USER}) ]; then
@@ -45,10 +52,12 @@ fi
 
 if [ ! -z $(getent passwd ${PLEX_USER}) ]; then
   echo "User ${PLEX_USER} exists."
+  ID_PLEX_USER=`id -u ${PLEX_USER}`
 else
   echo "User ${PLEX_USER} DOES NOT exist, creating..."
   adduser ${PLEX_USER}
   gpasswd -a ${PLEX_USER} ${GROUP}
+  ID_PLEX_USER=`id -u ${PLEX_USER}`
 fi
 
 if [ ! -z $(getent passwd ${COUCHPOTATO_USER}) ]; then
@@ -75,17 +84,31 @@ else
   gpasswd -a ${TRANSMISSION_USER} ${GROUP}
 fi
 
-# TODO: Write path test for all users & groups
 
-# TEST_PATHS=(${CURRENT} ${DOWNLOAD_TEMP} ${INCOMING} ${TV_SERIES} ${MOVIES} ${MUSIC})
-# for i in "${TEST_PATHS[@]}"; do
-#   sudo -u ${SABZNBD_USER} touch ${i}/write_test
-#   if [ $? -neq 0 ]; then
-#     echo "User ${SABZNBD_USER} has no write access in 1 of your paths!, Go Fix!"
-#     exit 1
-#   fi
-#   #TODO: Cleanup
-# fi
+PATHS=(${INSTALL_DIR} ${DOWNLOAD_TEMP} ${INCOMING} ${TV_SERIES} ${MOVIES} ${MUSIC})
+for i in "${PATHS[@]}"; do
+  if [ ! -d ${i} ]; then
+    echo "Creating ${i}"
+    mkdir -p ${i}
+  fi
+done
+
+CONFIG_PATHS=("sabnzbd" "headphones" "plex" "couchpotato" "sonarr" "transmission")
+for i in "${CONFIG_PATHS[@]}"; do
+  if [ ! -d "${INSTALL_DIR}/${i}" ]; then
+    echo "Creating config dir: ${INSTALL_DIR}/${i}"
+    mkdir -p ${INSTALL_DIR}/${i}
+  fi
+done
+
+if [ -f /etc/is_vagrant_vm ]; then
+  cp -R /vagrant/configs/sabnzbd/* ${INSTALL_DIR}/sabnzbd/
+  cp -R /vagrant/configs/couchpotato/* ${INSTALL_DIR}/couchpotato/
+  cp -R /vagrant/configs/headphones/* ${INSTALL_DIR}/headphones/
+  cp -R /vagrant/configs/plex/* ${INSTALL_DIR}/plex/
+  cp -R /vagrant/configs/sonarr/* ${INSTALL_DIR}/sonarr/
+  cp -R /vagrant/configs/transmission/* ${INSTALL_DIR}/transmission/
+fi
 
 ###################### ACTUAL INSTALLATION ######################
 
@@ -96,10 +119,10 @@ docker create --name="Sabnzbd" -v ${INSTALL_DIR}/sabnzbd:/config -v ${INCOMING}:
 docker create --name="Headphones" -v ${INSTALL_DIR}/headphones:/config -v ${INCOMING}:/downloads -v ${MUSIC}:/music -v /etc/localtime:/etc/localtime:ro -p 8181:8181 linuxserver/headphones
 
 # Plex
-docker create --name="Plex" --net=host -e VERSION=latest -e PUID=${PLEX_USER} -e PGID=${GROUP} -v ${INSTALL_DIR}/plex:/config -v ${TV_SERIES}:/data/tvshows -v ${MOVIES}:/data/movies linuxserver/plex
+docker create --name="Plex" --net=host -e VERSION=latest -e PUID=${ID_PLEX_USER} -e PGID=${ID_GROUP} -v ${INSTALL_DIR}/plex:/config -v ${TV_SERIES}:/data/tvshows -v ${MOVIES}:/data/movies linuxserver/plex
 
 # CouchPotato
-docker create --name="CouchPotato" -v /etc/localtime:/etc/localtime:ro -v ${INSTALL_DIR}/couchpotato:/config -v ${INCOMING}:/downloads -v ${MOVIES}:/movies -e PGID=${GROUP} -e PUID=${COUCHPOTATO_USER} -p 5050:5050 linuxserver/couchpotato
+docker create --name="Couchpotato" -v /etc/localtime:/etc/localtime:ro -v ${INSTALL_DIR}/couchpotato:/config -v ${INCOMING}:/downloads -v ${MOVIES}:/movies -e PGID=${GROUP} -e PUID=${COUCHPOTATO_USER} -p 5050:5050 linuxserver/couchpotato
 
 # Sonarr
 docker create --name="Sonarr" -p 8989:8989 -e PUID=${SONARR_USER} -e PGID=${GROUP} -v /dev/rtc:/dev/rtc:ro -v ${INSTALL_DIR}/sonarr:/config -v ${TV_SERIES}:/tv -v ${INCOMING}:/downloads linuxserver/sonarr
