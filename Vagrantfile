@@ -14,32 +14,39 @@ Vagrant.configure(2) do |config|
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "rchrd/centos-7-x64-base"
 
+
+  Vagrant::Config.run do |config|
+    config.vbguest.auto_update = true
+    config.vbguest.iso_path = "/usr/share/VBoxGuestAdditions.iso"
+    config.vbguest.installer_arguments = ['--force']
+  end
+
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
-  config.vm.box_check_update = true
+  config.vm.box_check_update = false 
 
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
   
   # SabNZBd
-  config.vm.network "forwarded_port", guest: 8080, host: 8080
+  #config.vm.network "forwarded_port", guest: 8080, host: 8080
 
   # Headphones
-  config.vm.network "forwarded_port", guest: 8181, host: 8181
+  #config.vm.network "forwarded_port", guest: 8181, host: 8181
 
   # Plex
-  config.vm.network "forwarded_port", guest: 32400, host: 32400
+  #config.vm.network "forwarded_port", guest: 32400, host: 32400
 
   # CouchPotato
-  config.vm.network "forwarded_port", guest: 5050, host: 5050
+  #config.vm.network "forwarded_port", guest: 5050, host: 5050
 
   # Sonarr
-  config.vm.network "forwarded_port", guest: 8989, host: 8989
+  #config.vm.network "forwarded_port", guest: 8989, host: 8989
 
   # Transmission
-  config.vm.network "forwarded_port", guest: 9091, host: 9091
+  #config.vm.network "forwarded_port", guest: 9091, host: 9091
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
@@ -65,7 +72,7 @@ Vagrant.configure(2) do |config|
   #   vb.gui = true
  
     # Customize the amount of memory on the VM:
-    vb.memory = "2048"
+    vb.memory = "4096"
   end
   #
   # View the documentation for the provider you are using for more
